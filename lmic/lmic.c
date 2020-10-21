@@ -655,6 +655,7 @@ static void addRxdErr (u1_t rxdelay) {
     LMIC.rxdErrIdx = (LMIC.rxdErrIdx + 1) % RXDERR_NUM;
 }
 
+#if defined(CFG_extapi)
 static s4_t evalRxdErr (u4_t* span) {
     s4_t min = 0x7FFFFFFF, min2=0x7FFFFFFF;
     s4_t max = 0x80000000, max2=0x80000000;
@@ -672,6 +673,7 @@ static s4_t evalRxdErr (u4_t* span) {
     *span = max2-min2;
     return (sum - max - min + ((RXDERR_NUM-2)/2)) / (RXDERR_NUM-2);
 }
+#endif
 
 static void adjustByRxdErr (u1_t rxdelay, u1_t dr) {
 #ifdef CFG_testpin
