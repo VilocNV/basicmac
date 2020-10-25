@@ -6,6 +6,10 @@
 #ifndef _lce_h_
 #define _lce_h_
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include "oslmic.h"
 
 // Some keyids:
@@ -54,5 +58,9 @@ typedef struct lce_ctx {
     lce_ctx_mcgrp_t mcgroup[LCE_MCGRP_MAX];
 } lce_ctx_t;
 
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // _lce_h_

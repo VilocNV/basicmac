@@ -7,6 +7,10 @@
 #ifndef _hal_hpp_
 #define _hal_hpp_
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #ifdef HAL_IMPL_INC
 #include HAL_IMPL_INC
 #endif
@@ -54,6 +58,8 @@ void hal_pin_busy_wait (void);
 #define HAL_IRQMASK_DIO2 (1<<2)
 #define HAL_IRQMASK_DIO3 (1<<3)
 void hal_irqmask_set (int mask);
+
+void hal_spi_fast(uint8_t const * transmit_buffer, uint16_t const transmit_length, uint8_t * receive_buffer, uint16_t const receive_length);
 
 /*
  * drive radio NSS pin (on=low, off=high).
@@ -157,5 +163,9 @@ void hal_reboot (void);
 bool hal_set_update (void* ptr);
 
 void hal_logEv (uint8_t evcat, uint8_t evid, uint32_t evparam);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // _hal_hpp_

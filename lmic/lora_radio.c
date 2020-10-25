@@ -88,7 +88,7 @@ void radio_irq_handler (u1_t diomask, ostime_t ticks) {
     BACKTRACE();
 
     // make sure previous job has been run
-    ASSERT( state.diomask == 0 );
+    CHECK_NO_CODE( state.diomask == 0 );
 
     // save interrupt source and time
     state.irqtime = ticks;

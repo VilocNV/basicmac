@@ -6,6 +6,10 @@
 #ifndef _peripherals_h_
 #define _peripherals_h_
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include "hw.h" // provided by HAL
 
 
@@ -116,6 +120,10 @@ void i2c_abort (void);
 
 unsigned int adc_read (unsigned int chnl, unsigned int rate);
 
+#endif
+
+#ifdef __cplusplus
+}
 #endif
 
 #endif

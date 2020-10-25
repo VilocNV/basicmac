@@ -41,7 +41,6 @@
 #endif
 
 DEFINE_LMIC;
-DECL_ON_LMIC_EVENT;
 
 // Fwd decls.
 static void engineUpdate(void);
@@ -421,7 +420,7 @@ static void setAvail (avail_t* pavail, osxtime_t t) {
         // need to fix up baseAvail
         base = os_getXTime();
         v = osticks2secCeil(t - base);
-        ASSERT(v <= 0xffff);
+        CHECK_NO_CODE(v <= 0xffff);
         adjAvail(&LMIC.globalAvail, base);
 #ifdef REG_DYN
         if( !REG_IS_FIX() ) {
@@ -588,7 +587,7 @@ static ostime_t dr2hsym (dr_t dr, s1_t num) {
     rps_t rps = REGION.dr2rps[dr];
     u1_t sf = getSf(rps);
     u1_t bw = getBw(rps);
-    ASSERT(sf >= SF7 && sf <=SF12 && bw >= BW125 && bw <= BW500);
+    CHECK_NO_CODE(sf >= SF7 && sf <=SF12 && bw >= BW125 && bw <= BW500);
     s4_t us = num << (9 + sf - SF7 - bw);  // 10 => 9 half symbol time
     return us2osticks(us);
 }
@@ -695,7 +694,7 @@ static void rxschedInit (rxsched_t* rxsched) {
     //   pingNb = 2^(7-intvExp)
     //   pingOffset = Rand % pingPeriod
     //   pingPeriod = 2^12 / pingNb = 2^12 / 2^(7-intvExp) = 2^5/2^-intvExp = 32<<intvExp
-    ASSERT((LMIC.opmode & OP_PINGABLE) && rxsched->intvExp <= 7);
+    CHECK_NO_CODE((LMIC.opmode & OP_PINGABLE) && rxsched->intvExp <= 7);
     u1_t intvExp = rxsched->intvExp;
     os_clearMem(LMIC.frame+8,8);
     os_wlsbf4(LMIC.frame, LMIC.bcninfo.time);
@@ -770,7 +769,7 @@ void LMIC_stopPingable (void) {
 
 
 u1_t LMIC_setPingable (u1_t intvExp) {
-    ASSERT(intvExp <= 7);
+    CHECK_NO_CODE(intvExp <= 7);
     // Change setting
     if( LMIC.ping.intvExp == intvExp ) {
         LMIC.opmode |= OP_PINGABLE;
@@ -920,7 +919,7 @@ static void syncDatarate_dyn (void) {
             endrs |= LMIC.dyn.chDrMap[ci];
         }
     }
-    ASSERT(endrs != 0);
+    CHECK_NO_CODE(endrs != 0);
     drmap_t drbit = 1 << LMIC.datarate;
     if ((drbit & endrs) == 0) {
         // Find closest DR
@@ -980,7 +979,7 @@ static u1_t selectRandomChnl (u2_t map, u1_t nbits) {
         }
         k--;
     }
-    ASSERT(0);
+    CHECK_NO_CODE(0);
     return 0;
 }
 
@@ -1035,7 +1034,7 @@ again:
         // No suitable channel found - maybe there's no channel which includes current datarate
         syncDatarate();
         drmap_t drbit2 = 1 << LMIC.datarate;
-        ASSERT(drbit != drbit2);
+        CHECK_NO_CODE(drbit != drbit2);
         drbit = drbit2;
         goto again;
     }
@@ -1100,7 +1099,7 @@ static void initJoinLoop (void) {
     }
     LMIC.txPowAdj = 0;
     LMIC.nbTrans = 0;
-    ASSERT((LMIC.opmode & OP_NEXTCHNL) == 0);
+    CHECK_NO_CODE((LMIC.opmode & OP_NEXTCHNL) == 0);
     LMIC.txend = os_getTime() + rndDelay(8); // random delay before first join req
 }
 
@@ -1171,7 +1170,7 @@ done:
 // get next pseudo-random byte
 u1_t prng_next (u1_t* prngbuf) {
     u1_t i = prngbuf[0];
-    ASSERT(i != 0);
+    CHECK_NO_CODE(i != 0);
     if( i == 16 ) {
         lce_encKey0(prngbuf);
         i = 0;
@@ -1455,7 +1454,7 @@ static void opmodePoll (void) {
 
 static void reportEvent (ev_t ev) {
     TRACE_EV(ev);
-    ON_LMIC_EVENT(ev);
+    onLmicEvent(ev);
     engineUpdate();
 }
 
@@ -1888,7 +1887,7 @@ static bit_t decodeFrame (void) {
                 // Disable tracking
                 LMIC.opmode |= OP_TRACK;
                 // Cleared later in txComplete handling - triggers EV_BEACON_FOUND
-                ASSERT(LMIC.askForTime!=0);
+                CHECK_NO_CODE(LMIC.askForTime!=0);
                 // Setup RX parameters
                 LMIC.bcninfo.txtime = (LMIC.rxtime
                                        + ms2osticks(os_rlsbf2(&opts[oidx+1]) * MCMD_BCNI_TUNIT)
@@ -2123,13 +2122,13 @@ static void onJoinFailed (osjob_t* osjob) {
 
 
 static bit_t processJoinAccept (void) {
-    ASSERT(LMIC.txrxFlags != TXRX_DNW1 || LMIC.dataLen != 0);
-    ASSERT((LMIC.opmode & OP_TXRXPEND)!=0);
+    CHECK_NO_CODE(LMIC.txrxFlags != TXRX_DNW1 || LMIC.dataLen != 0);
+    CHECK_NO_CODE((LMIC.opmode & OP_TXRXPEND)!=0);
 
     if( LMIC.dataLen == 0 ) {
       nojoinframe:
         if( (LMIC.opmode & OP_JOINING) == 0 ) {
-            ASSERT((LMIC.opmode & OP_REJOIN) != 0);
+            CHECK_NO_CODE((LMIC.opmode & OP_REJOIN) != 0);
             // REJOIN attempt for roaming
             LMIC.opmode &= ~(OP_REJOIN|OP_TXRXPEND);
             if( LMIC.rejoinCnt < 10 )
@@ -2202,7 +2201,7 @@ static bit_t processJoinAccept (void) {
         }
     }
 
-    ASSERT((LMIC.opmode & (OP_JOINING|OP_REJOIN))!=0);
+    CHECK_NO_CODE((LMIC.opmode & (OP_JOINING|OP_REJOIN))!=0);
     if( (LMIC.opmode & OP_REJOIN) != 0 ) {
         // Lower DR every try below current UP DR
         LMIC.datarate = lowerDR(LMIC.datarate, LMIC.rejoinCnt);
@@ -2683,7 +2682,7 @@ static void startJoining (osjob_t* osjob) {
 bit_t LMIC_startJoining (void) {
     if( LMIC.netid == NETID_NONE ) {
         // There should be no TX/RX going on
-        ASSERT((LMIC.opmode & (OP_POLL|OP_TXRXPEND)) == 0);
+        CHECK_NO_CODE((LMIC.opmode & (OP_POLL|OP_TXRXPEND)) == 0);
         // Lift any previous duty limitation
         LMIC.globalDutyRate = 0;
         // Cancel scanning
@@ -2722,7 +2721,7 @@ static void processPingRx (osjob_t* osjob) {
 
 
 static bit_t processDnData (void) {
-    ASSERT((LMIC.opmode & OP_TXRXPEND)!=0);
+    CHECK_NO_CODE((LMIC.opmode & OP_TXRXPEND)!=0);
 
     if( LMIC.dataLen == 0 ) {
       norx:
@@ -2843,7 +2842,7 @@ static void processBeacon (osjob_t* osjob) {
         LMIC.drift = drift;
         LMIC.missedBcns = LMIC.rejoinCnt = 0;
         LMIC.bcninfo.flags &= ~BCN_NODRIFT;
-        ASSERT((LMIC.bcninfo.flags & (BCN_PARTIAL|BCN_FULL)) != 0);
+        CHECK_NO_CODE((LMIC.bcninfo.flags & (BCN_PARTIAL|BCN_FULL)) != 0);
     } else {
         ev = EV_BEACON_MISSED;
         LMIC.bcninfo.txtime += BCN_INTV_osticks + LMIC.drift;
@@ -2922,7 +2921,7 @@ static void engineUpdate (void) {
                     (ostime_t)(rxtime-now),now,rxtime,LMIC.bcnRxtime,RX_RAMPUP);
         }
 #else
-        ASSERT( (ostime_t)(rxtime-now) >= 0 );
+        CHECK_NO_CODE( (ostime_t)(rxtime-now) >= 0 );
 #endif
     }
     if( LMIC.pollcnt )
@@ -3028,7 +3027,7 @@ static void engineUpdate (void) {
             LMIC.freq    = LMIC.ping.freq;          // XXX:US like => calc based on beacon time!
             LMIC.rps     = dndr2rps(LMIC.ping.dr);
             LMIC.dataLen = 0;
-            ASSERT(LMIC.rxtime - now+RX_RAMPUP >= 0 );
+            CHECK_NO_CODE(LMIC.rxtime - now+RX_RAMPUP >= 0 );
             os_setTimedCallback(&LMIC.osjob, LMIC.rxtime - RX_RAMPUP, FUNC_ADDR(startRxPing));
             return;
         }
@@ -3089,7 +3088,7 @@ int LMIC_regionIdx (u1_t regionCode) {
 }
 
 u1_t LMIC_regionCode (u1_t regionIdx) {
-    ASSERT(regionIdx < REGIONS_COUNT);
+    CHECK_NO_CODE(regionIdx < REGIONS_COUNT);
     return REGIONS[regionIdx].regcode;
 }
 
@@ -3101,7 +3100,7 @@ void LMIC_reset_ex (u1_t regionCode) {
 
     // set region
     int regionIdx = LMIC_regionIdx(regionCode);
-    ASSERT(regionIdx >= 0);
+    CHECK_NO_CODE(regionIdx >= 0);
     LMIC.region = &REGIONS[regionIdx];
     // reset and calibrate radio
     LMIC.freq = (REGION.maxFreq - REGION.minFreq) / 2;
@@ -3146,7 +3145,7 @@ void LMIC_clrTxData (void) {
 
 
 void LMIC_setTxData (void) {
-    ASSERT((LMIC.opmode & OP_JOINING) == 0);
+    CHECK_NO_CODE((LMIC.opmode & OP_JOINING) == 0);
     LMIC.opmode |= OP_TXDATA;
     LMIC.txCnt = 0;             // reset nbTrans counter
     engineUpdate();

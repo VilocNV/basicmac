@@ -6,6 +6,10 @@
 #ifndef _region_h_
 #define _region_h_
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 // public region codes - DO NOT CHANGE!
 enum {
     REGCODE_UNDEF = 0,
@@ -140,6 +144,10 @@ enum {
 
 #define MAX_FIX_CHNLS	(MAX_FIX_CHNLS_125 + MAX_FIX_CHNLS_500)
 
+#endif
+
+#ifdef __cplusplus
+}
 #endif
 
 #endif

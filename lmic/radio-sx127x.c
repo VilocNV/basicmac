@@ -376,7 +376,7 @@ static void setopmode (u1_t opmode) {
 	if (os_getTime() - t0 > ms2osticks(20)) {
 	    // panic when opmode is not reached within 20ms
 	    debug_printf("FAILED TO SET OPMODE %02x within 20ms\r\n", opmode);
-	    ASSERT(0);
+	    CHECK_NO_CODE(0);
 	}
     }
 }
@@ -507,10 +507,10 @@ static void setRadioConsumption_ua (bool boost, u1_t pow) {
     };
     if( boost ) {
         pow -= 2;
-        ASSERT(pow < 19);
+        CHECK_NO_CODE(pow < 19);
         ua = BOOSTPOW[pow] << 1;
     } else {
-        ASSERT(pow < 16);
+        CHECK_NO_CODE(pow < 16);
         ua = RFOPOW[pow];
     }
 #else
@@ -1007,7 +1007,7 @@ static void rxfsk (bool rxcontinuous) {
 }
 
 void radio_startrx (bool rxcontinuous) {
-    ASSERT( (readReg(RegOpMode) & OPMODE_MASK) == OPMODE_SLEEP );
+    CHECK_NO_CODE( (readReg(RegOpMode) & OPMODE_MASK) == OPMODE_SLEEP );
 
     // set power consumption for statistics
     LMIC.radioPwr_ua = 11500;
@@ -1024,13 +1024,13 @@ void radio_startrx (bool rxcontinuous) {
 }
 
 void radio_cad (void) {
-    ASSERT( (readReg(RegOpMode) & OPMODE_MASK) == OPMODE_SLEEP );
+    CHECK_NO_CODE( (readReg(RegOpMode) & OPMODE_MASK) == OPMODE_SLEEP );
 
     rxloracad();
 }
 
 void radio_starttx (bool txcontinuous) {
-    ASSERT( (readReg(RegOpMode) & OPMODE_MASK) == OPMODE_SLEEP );
+    CHECK_NO_CODE( (readReg(RegOpMode) & OPMODE_MASK) == OPMODE_SLEEP );
     if (getSf(LMIC.rps) == FSK) { // FSK modem
         txfsk(txcontinuous);
     } else { // LoRa modem
@@ -1042,7 +1042,7 @@ void radio_starttx (bool txcontinuous) {
 void radio_cca (void) {
     BACKTRACE();
     // select FSK modem (from sleep mode)
-    ASSERT( (readReg(RegOpMode) & OPMODE_MASK) == OPMODE_SLEEP );
+    CHECK_NO_CODE( (readReg(RegOpMode) & OPMODE_MASK) == OPMODE_SLEEP );
     setopmode(OPMODE_FSK_SLEEP);
 
     // power-up tcxo
@@ -1112,7 +1112,7 @@ static void radio_reset (void) {
     hal_waitUntil(os_getTime() + ms2osticks(10));
 
     // check opmode
-    ASSERT( readReg(RegOpMode) == OPMODE_FSK_STANDBY );
+    CHECK_NO_CODE( readReg(RegOpMode) == OPMODE_FSK_STANDBY );
 }
 
 void radio_init (bool calibrate) {
@@ -1126,7 +1126,7 @@ void radio_init (bool calibrate) {
     radio_reset();
 
     // sanity check, read version number
-    ASSERT( readReg(RegVersion) == RADIO_VERSION );
+    CHECK_NO_CODE( readReg(RegVersion) == RADIO_VERSION );
 
     // disable automatic image rejection calibration
     writeReg(FSKRegImageCal, 0x00);
@@ -1215,7 +1215,7 @@ bool radio_irq_process (ostime_t irqtime, u1_t diomask) {
 	} else {
 	    // unexpected irq
 	    debug_printf("UNEXPECTED FSK IRQ %02x %02x\r\n", irqflags1, irqflags2);
-	    ASSERT(0);
+	    CHECK_NO_CODE(0);
 	}
 
 	// clear FSK IRQ flags
@@ -1289,7 +1289,7 @@ bool radio_irq_process (ostime_t irqtime, u1_t diomask) {
 	    }
         } else {
 	    // unexpected irq
-	    ASSERT(0);
+	    CHECK_NO_CODE(0);
 	}
 
 	// mask all LoRa IRQs

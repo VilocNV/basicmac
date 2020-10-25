@@ -7,6 +7,10 @@
 #ifndef _debug_h_
 #define _debug_h_
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #ifndef CFG_DEBUG
 
 #define debug_snprintf(s,n,f,...)	do { } while (0)
@@ -28,6 +32,10 @@ void debug_str (const char* str);
 // set LED state
 void debug_led (int val);
 
+#endif
+
+#ifdef __cplusplus
+}
 #endif
 
 #endif

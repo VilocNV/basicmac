@@ -8,6 +8,10 @@
 #ifndef _oslmic_h_
 #define _oslmic_h_
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #if !defined(CFG_simul)
 #include "board.h"
 #endif // !defined(CFG_simul)
@@ -36,20 +40,8 @@ typedef const char*	str_t;
 #if !defined(CFG_simul)
 #include "debug.h"
 #endif
-#if !defined(CFG_noassert)
-#if defined(CFG_simul) && defined(CFG_DEBUG)
-#include <stdio.h>
-#define ASSERT(cond) do { \
-    if(!(cond)) { fprintf(stderr, "ASSERTION FAILED: %s at %s:%d\n", \
-			  #cond, __FILE__, __LINE__); hal_failed(); } } while (0)
-#elif defined(CFG_DEBUG)
-#define ASSERT(cond) do { if(!(cond)) { debug_printf("%s:%d: assertion failed\r\n", __FILE__, __LINE__); hal_failed(); } } while (0)
-#else
-#define ASSERT(cond) do { if(!(cond)) hal_failed(); } while (0)
-#endif
-#else
-#define ASSERT(cond) do { } while (0)
-#endif
+
+#include "error.h"
 
 #define max(a,b)                                \
     ({  __typeof__ (a) _a = (a);                \
@@ -65,9 +57,6 @@ typedef const char*	str_t;
 #define os_clearMem(a,b)   memset(a,0,b)
 #define os_copyMem(a,b,c)  memcpy(a,b,c)
 #define os_moveMem(a,b,c)  memmove(a,b,c)
-
-#define ON_LMIC_EVENT(ev)  onLmicEvent(ev)
-#define DECL_ON_LMIC_EVENT void onLmicEvent(ev_t e)
 
 #define ON_BUDHA_EVENT(ev)  onBudhaEvent(ev)
 #define DECL_ON_BUDHA_EVENT void onBudhaEvent(ev_t e)
@@ -358,5 +347,9 @@ void radio_sleep (void);
 void radio_cca (void);
 void radio_cad (void);
 void radio_cw (void);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // _oslmic_h_

@@ -10,6 +10,10 @@
 #ifndef _lmic_h_
 #define _lmic_h_
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include "region.h"
 #include "oslmic.h"
 #include "lorabase.h"
@@ -510,6 +514,12 @@ void     LMIC_getRxdErrInfo (s4_t* skew, u4_t* span);
 #define TRACE_VAL(v)
 #define TRACE_EV(e)
 #define TRACE_ADDR(a)
+#endif
+
+extern void onLmicEvent(ev_t e);
+
+#ifdef __cplusplus
+}
 #endif
 
 #endif // _lmic_h_

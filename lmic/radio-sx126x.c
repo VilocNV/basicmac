@@ -162,72 +162,41 @@ static struct {
 // ----------------------------------------
 
 static void writecmd (uint8_t cmd, const uint8_t* data, uint8_t len) {
-    hal_spi_select(1);
-    hal_pin_busy_wait();
     state.sleeping = 0;
-    hal_spi(cmd);
-    for (u1_t i = 0; i < len; i++) {
-        hal_spi(data[i]);
-    }
-    hal_spi_select(0);
-    // busy line will go high after max 600ns
-    // eventually during a subsequent hal_spi_select(1)...
+	uint8_t buffer[256] = {cmd};
+	memcpy(&buffer[1], data, len);
+	hal_spi_fast(buffer, len + 1, NULL, 0);
 }
 
 static void WriteRegs (uint16_t addr, const uint8_t* data, uint8_t len) {
-    hal_spi_select(1);
-    hal_pin_busy_wait();
+    uint8_t buffer[270] = {CMD_WRITEREGISTER, addr >> 8, addr};
+	memcpy(&buffer[3], data, len);
     state.sleeping = 0;
-    hal_spi(CMD_WRITEREGISTER);
-    hal_spi(addr >> 8);
-    hal_spi(addr);
-    for (uint8_t i = 0; i < len; i++) {
-        hal_spi(data[i]);
-    }
-    hal_spi_select(0);
-}
-
-static void WriteReg (uint16_t addr, uint8_t val) {
-    WriteRegs(addr, &val, 1);
+    hal_spi_fast(buffer, len + 3, NULL, 0);
 }
 
 static void WriteBuffer (uint8_t off, const uint8_t* data, uint8_t len) {
-    hal_spi_select(1);
-    hal_pin_busy_wait();
+	uint8_t buffer[270] = {CMD_WRITEBUFFER, off};
+	memcpy(&buffer[2], data, len);
     state.sleeping = 0;
-    hal_spi(CMD_WRITEBUFFER);
-    hal_spi(off);
-    for (uint8_t i = 0; i < len; i++) {
-        hal_spi(data[i]);
-    }
-    hal_spi_select(0);
+    hal_spi_fast(buffer, len + 2, NULL, 0);
 }
 
 static uint8_t readcmd (uint8_t cmd, uint8_t* data, uint8_t len) {
-    hal_spi_select(1);
-    hal_pin_busy_wait();
+	uint8_t buffer[270] = {cmd, 0x00};
+	uint8_t result[270];
     state.sleeping = 0;
-    hal_spi(cmd);
-    uint8_t stat = hal_spi(0x00);
-    for (u1_t i = 0; i < len; i++) {
-        data[i] = hal_spi(0x00);
-    }
-    hal_spi_select(0);
-    return stat;
+    hal_spi_fast(buffer, len + 2, result, len + 2);
+	memcpy(data, &result[2], len);
+    return result[1];
 }
 
 static void ReadRegs (uint16_t addr, uint8_t* data, uint8_t len) {
-    hal_spi_select(1);
-    hal_pin_busy_wait();
+	uint8_t buffer[270] = {CMD_READREGISTER, addr >> 8, addr, 0x00};
+	uint8_t result[270];
     state.sleeping = 0;
-    hal_spi(CMD_READREGISTER);
-    hal_spi(addr >> 8);
-    hal_spi(addr);
-    hal_spi(0x00); // NOP
-    for (uint8_t i = 0; i < len; i++) {
-        data[i] = hal_spi(0x00);
-    }
-    hal_spi_select(0);
+    hal_spi_fast(buffer, len + 4, result, len + 4);
+	memcpy(data, &result[4], len);
 }
 
 static uint8_t ReadReg (uint16_t addr) {
@@ -237,16 +206,11 @@ static uint8_t ReadReg (uint16_t addr) {
 }
 
 static void ReadBuffer (uint8_t off, uint8_t* data, uint8_t len) {
-    hal_spi_select(1);
-    hal_pin_busy_wait();
+	uint8_t buffer[270] = {CMD_READBUFFER, off, 0x00};
+	uint8_t result[270];
     state.sleeping = 0;
-    hal_spi(CMD_READBUFFER);
-    hal_spi(off);
-    hal_spi(0x00); // NOP
-    for (uint8_t i = 0; i < len; i++) {
-        data[i] = hal_spi(0x00);
-    }
-    hal_spi_select(0);
+    hal_spi_fast(buffer, len + 3, result, len + 3);
+	memcpy(data, &result[3], len);
 }
 
 // set sleep mode SLEEP_COLD or SLEEP_WARM (from standby mode)
@@ -267,6 +231,12 @@ static void SetRegulatorMode (uint8_t mode) {
 // use DIO2 to drive antenna rf switch
 static void SetDIO2AsRfSwitchCtrl (uint8_t enable) {
     writecmd(CMD_SETDIO2ASRFSWITCHCTRL, &enable, 1);
+}
+
+// use DIO3 to drive tcxo
+static void SetDIO3AsTCXOControl () {
+    static const uint8_t tcxoControl[] = {0x02, 0x00, 0x01, 0x00};
+    writecmd(CMD_SETDIO3ASTCXOCTRL, tcxoControl, 4);
 }
 
 // write payload to fifo buffer at offset 0
@@ -495,19 +465,6 @@ static void SetCrc16 (uint16_t seed, uint16_t polynomial) {
     WriteRegs(REG_CRCPOLYVALMSB, buf, 2);
 }
 
-static uint32_t GetRandom (void) {
-    uint8_t buf[4];
-    // continuous rx
-    SetRx(0xFFFFFF);
-    // wait 1ms
-    hal_waitUntil(os_getTime() + ms2osticks(1));
-    // read random register
-    ReadRegs(REG_RANDOMNUMBERGEN0, buf, 4);
-    // standby
-    SetStandby(STDBY_RC);
-    return *((uint32_t*) buf);
-}
-
 void radio_sleep (void) {
     // cache sleep state to avoid unneccessary wakeup (waking up from cold sleep takes about 4ms)
     if (state.sleeping == 0) {
@@ -519,6 +476,7 @@ void radio_sleep (void) {
 static void txlora (void) {
     SetRegulatorMode(REGMODE_DCDC);
     SetDIO2AsRfSwitchCtrl(1);
+	SetDIO3AsTCXOControl();
     SetStandby(STDBY_RC);
     SetPacketType(PACKET_TYPE_LORA);
     SetRfFrequency(LMIC.freq);
@@ -544,6 +502,7 @@ static void txlora (void) {
 static void txfsk (void) {
     SetRegulatorMode(REGMODE_DCDC);
     SetDIO2AsRfSwitchCtrl(1);
+	SetDIO3AsTCXOControl();
     SetStandby(STDBY_RC);
     SetPacketType(PACKET_TYPE_FSK);
     SetRfFrequency(LMIC.freq);
@@ -571,6 +530,7 @@ static void txfsk (void) {
 static void txcw (void) {
     SetRegulatorMode(REGMODE_DCDC);
     SetDIO2AsRfSwitchCtrl(1);
+	SetDIO3AsTCXOControl();
     SetStandby(STDBY_RC);
     SetRfFrequency(LMIC.freq);
     SetTxPower(LMIC.txpow + LMIC.brdTxPowOff);
@@ -582,6 +542,11 @@ static void txcw (void) {
     // start tx of wave (indefinitely, ended by RADIO_STOP)
     BACKTRACE();
     SetTxContinuousWave();
+}
+
+void radio_cw (void)
+{
+	radio_starttx(true);
 }
 
 void radio_starttx (bool txcontinuous) {
@@ -600,9 +565,12 @@ void radio_starttx (bool txcontinuous) {
 
 static void rxfsk (bool rxcontinuous) {
     // configure radio (needs rampup time)
+#ifdef CFG_DEBUG
     ostime_t t0 = os_getTime();
+#endif
     SetRegulatorMode(REGMODE_DCDC);
     SetDIO2AsRfSwitchCtrl(1);
+	SetDIO3AsTCXOControl();
     SetStandby(STDBY_RC);
     SetPacketType(PACKET_TYPE_FSK);
     SetRfFrequency(LMIC.freq);
@@ -649,9 +617,12 @@ static void rxfsk (bool rxcontinuous) {
 
 static void rxlora (bool rxcontinuous) {
     // configure radio (needs rampup time)
+#ifdef CFG_DEBUG
     ostime_t t0 = os_getTime();
+#endif
     SetRegulatorMode(REGMODE_DCDC);
     SetDIO2AsRfSwitchCtrl(1);
+	SetDIO3AsTCXOControl();
     SetStandby(STDBY_RC);
     SetPacketType(PACKET_TYPE_LORA);
     SetRfFrequency(LMIC.freq);
@@ -701,7 +672,7 @@ void radio_cca () {
 
 void radio_cad (void) {
     // not yet...
-    ASSERT(0);
+    CHECK_NO_CODE(0);
 }
 
 void radio_startrx (bool rxcontinuous) {
@@ -727,7 +698,8 @@ static void radio_reset (void) {
     hal_waitUntil(os_getTime() + ms2osticks(1));
 
     // check reset value
-    ASSERT( ReadReg(REG_LORASYNCWORDLSB) == 0x24 );
+	uint8_t value = ReadReg(REG_LORASYNCWORDLSB);
+    CHECK_NO_CODE( value == 0x24 );
 
     // initialize state
     state.sleeping = 0;
@@ -740,7 +712,7 @@ void radio_init (bool calibrate) {
     radio_reset();
 
     // check reset value
-    ASSERT( ReadReg(REG_LORASYNCWORDLSB) == 0x24 );
+    CHECK_NO_CODE( ReadReg(REG_LORASYNCWORDLSB) == 0x24 );
 
     if (calibrate) {
 	CalibrateImage(LMIC.freq);
@@ -791,7 +763,7 @@ bool radio_irq_process (ostime_t irqtime, u1_t diomask) {
 	    // unexpected irq
 	    debug_printf("UNEXPECTED RADIO IRQ %04x (after %d ticks, %.1Fms)\r\n", irqflags, irqtime - LMIC.rxtime, osticks2us(irqtime - LMIC.rxtime), 3);
 	    TRACE_VAL(irqflags);
-	    ASSERT(0);
+	    CHECK_NO_CODE(0);
 	}
     } else { // LORA modem
 	if (irqflags & IRQ_TXDONE) { // TXDONE
@@ -836,7 +808,7 @@ bool radio_irq_process (ostime_t irqtime, u1_t diomask) {
 	    // unexpected irq
 	    debug_printf("UNEXPECTED RADIO IRQ %04x\r\n", irqflags);
 	    TRACE_VAL(irqflags);
-	    ASSERT(0);
+	    CHECK_NO_CODE(0);
 	}
     }
 
